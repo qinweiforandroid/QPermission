@@ -42,4 +42,4 @@ dependencies {
 repositories {
     mavenCentral()
 }
-apply from: '../publish-mavencentral.gradle'
+apply from: '../nexus.gradle'
