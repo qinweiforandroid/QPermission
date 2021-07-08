@@ -4,59 +4,154 @@ import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.widget.Button
 import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
+import com.google.android.material.snackbar.Snackbar
 import com.qw.permission.*
+import com.qw.permission.sample.databinding.ActivityMainBinding
 
 class MainActivity : AppCompatActivity() {
+    private lateinit var bind: ActivityMainBinding
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_main)
-        findViewById<Button>(R.id.mLocationBtn).setOnClickListener {
-            requestLocation()
-            QPermission.init(this)
+        setContentView(ActivityMainBinding.inflate(layoutInflater).apply {
+            bind = this
+        }.root)
+
+        bind.mLocationBtn.setOnClickListener {
+            val isGrant =
+                Permission.isGrant(this, android.Manifest.permission.ACCESS_COARSE_LOCATION)
+            if (isGrant) {
+                location()
+                return@setOnClickListener
+            }
+            val shouldShowRequestPermissionRationale =
+                Permission.shouldShowRequestPermissionRationale(
+                    this,
+                    android.Manifest.permission.ACCESS_COARSE_LOCATION
+                )
+            if (shouldShowRequestPermissionRationale) {
+                AlertDialog.Builder(this)
+                    .setTitle("定位权限申请")
+                    .setMessage("需要定位权限")
+                    .setCancelable(false)
+                    .setNegativeButton("取消") { dialog, which ->
+                    }
+                    .setPositiveButton("确定") { dialog, which ->
+                        requestLocation()
+                    }.show()
+            } else {
+                //权限拒绝且不在询问
+                requestLocation()
+            }
+        }
+        bind.mStorageBtn.setOnClickListener {
+            Permission.init(this)
                 .permissions(
                     arrayOf(
-                        android.Manifest.permission.ACCESS_COARSE_LOCATION,
-                        android.Manifest.permission.WRITE_EXTERNAL_STORAGE,
+                        android.Manifest.permission.WRITE_EXTERNAL_STORAGE
+                    )
+                )
+                .setOnRequestPermissionsResultListener(object : OnRequestPermissionsResultListener {
+                    override fun onRequestPermissionsResult(result: PermissionResult) {
+                        if (result.isGrant()) {
+                            Toast.makeText(this@MainActivity, "已授权", Toast.LENGTH_LONG).show()
+                        } else {
+                            //
+                            Toast.makeText(
+                                this@MainActivity,
+                                "未授权：" + result.getDeniedPermissions(),
+                                Toast.LENGTH_LONG
+                            ).show()
+                        }
+                        notifyDataChanged()
+                    }
+                })
+                .request()
+        }
+        bind.mPhoneBtn.setOnClickListener {
+            Permission.init(this)
+                .permissions(
+                    arrayOf(
                         android.Manifest.permission.CALL_PHONE
                     )
                 )
-                .setOnPermissionDenied(object : OnPermissionDeniedListener {
-                    override fun onPermissionDenied(
-                        grantedPermissions: Array<String>,
-                        scope: PermissionScope
-                    ) {
-                        scope.title = "权限申请"
-                        scope.message = "权限设置"
-                        scope.leftText = "取消"
-                        scope.rightText = "申请"
-                        scope.show()
+                .setOnRequestPermissionsResultListener(object : OnRequestPermissionsResultListener {
+                    override fun onRequestPermissionsResult(result: PermissionResult) {
+                        if (result.isGrant()) {
+                            Toast.makeText(this@MainActivity, "已授权", Toast.LENGTH_LONG).show()
+                        } else {
+                            //
+                            Toast.makeText(
+                                this@MainActivity,
+                                "未授权：" + result.getDeniedPermissions(),
+                                Toast.LENGTH_LONG
+                            ).show()
+                        }
+                        notifyDataChanged()
                     }
                 })
-                .setOnPermissionRationale(object : OnPermissionRationaleListener {
-                    override fun onPermissionRationale(
-                        permissions: Array<String>,
-                        scope: PermissionScope
-                    ) {
-                        scope.title = "权限申请"
-                        scope.message = "需要申请权限，然后才能继续使用"
-                        scope.leftText = "取消"
-                        scope.rightText = "申请"
-                        scope.show()
-                    }
-                })
-                .setOnPermissionGranted(object : OnPermissionGrantedListener {
-                    override fun onPermissionGranted(permissions: Array<String>) {
-                        Toast.makeText(
-                            this@MainActivity,
-                            "onPermissionGranted:$permissions",
-                            Toast.LENGTH_SHORT
-                        ).show()
-                    }
-                }).request()
+                .request()
         }
+        notifyDataChanged()
+
     }
 
     private fun requestLocation() {
+        Permission.init(this)
+            .permissions(
+                arrayOf(
+                    android.Manifest.permission.ACCESS_COARSE_LOCATION
+                )
+            )
+            .setOnRequestPermissionsResultListener(object :
+                OnRequestPermissionsResultListener {
+                override fun onRequestPermissionsResult(result: PermissionResult) {
+                    if (result.isGrant()) {
+                        location()
+                        Toast.makeText(this@MainActivity, "已授权", Toast.LENGTH_LONG)
+                            .show()
+                    } else {
+                        Toast.makeText(
+                            this@MainActivity,
+                            "未授权：" + result.getDeniedPermissions(),
+                            Toast.LENGTH_LONG
+                        ).show()
+                        val shouldShowRequestPermissionRationale =
+                            Permission.shouldShowRequestPermissionRationale(
+                                this@MainActivity,
+                                android.Manifest.permission.ACCESS_COARSE_LOCATION
+                            )
+                        if(!shouldShowRequestPermissionRationale){
+                            AlertDialog.Builder(this@MainActivity)
+                                .setTitle("定位权限提示")
+                                .setMessage("需要定位权限")
+                                .setCancelable(false)
+                                .setNegativeButton("取消") { dialog, which ->
+                                }
+                                .setPositiveButton("确定") { dialog, which ->
+                                    Permission.permissionSettings(this@MainActivity, 100)
+                                }.show()
+                        }
+                    }
+                    notifyDataChanged()
+                }
+            })
+            .request()
+    }
 
+    private fun location() {
+    }
+
+    private fun notifyDataChanged() {
+        val locationGrant =
+            Permission.isGrant(this, android.Manifest.permission.ACCESS_COARSE_LOCATION)
+        val storageGrant =
+            Permission.isGrant(this, android.Manifest.permission.WRITE_EXTERNAL_STORAGE)
+        val phoneGrant =
+            Permission.isGrant(this, android.Manifest.permission.CALL_PHONE)
+        bind.mLocationBtn.text = "定位Grant(${locationGrant})"
+        bind.mStorageBtn.text = "存储Grant(${storageGrant})"
+        bind.mPhoneBtn.text = "电话Grant(${phoneGrant})"
     }
 }
