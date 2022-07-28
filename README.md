@@ -23,9 +23,11 @@ allprojects {
 
 **Step 2.** Add the dependency
 
+最新版本[![](https://jitpack.io/v/qinweiforandroid/QPermission.svg)](https://jitpack.io/#qinweiforandroid/QPermission)
+
 ```groovy
 dependencies {
-  implementation 'com.github.qinweiforandroid:QPermission:1.0.0416'
+  implementation 'com.github.qinweiforandroid:QPermission:1.0.0728'
 }
 ```
 
