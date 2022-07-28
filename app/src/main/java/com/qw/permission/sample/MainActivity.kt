@@ -1,5 +1,6 @@
 package com.qw.permission.sample
 
+import android.content.Intent
 import android.os.Bundle
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
@@ -15,130 +16,112 @@ class MainActivity : AppCompatActivity() {
         setContentView(ActivityMainBinding.inflate(layoutInflater).apply {
             bind = this
         }.root)
-
+        notifyDataChanged()
         bind.mLocationBtn.setOnClickListener {
-            val isGrant =
-                Permission.isGrant(this, android.Manifest.permission.ACCESS_COARSE_LOCATION)
-            if (isGrant) {
-                location()
-                return@setOnClickListener
-            }
-            val shouldShowRequestPermissionRationale =
-                Permission.shouldShowRequestPermissionRationale(
-                    this,
-                    android.Manifest.permission.ACCESS_COARSE_LOCATION
-                )
-            if (shouldShowRequestPermissionRationale) {
-                AlertDialog.Builder(this)
-                    .setTitle("定位权限申请")
-                    .setMessage("需要定位权限")
-                    .setCancelable(false)
-                    .setNegativeButton("取消") { dialog, which ->
-                    }
-                    .setPositiveButton("确定") { dialog, which ->
-                        requestLocation()
-                    }.show()
-            } else {
-                //权限拒绝且不在询问
-                requestLocation()
-            }
+            requestLocation()
         }
         bind.mStorageBtn.setOnClickListener {
-            Permission.init(this)
-                .permissions(
-                    arrayOf(
-                        android.Manifest.permission.WRITE_EXTERNAL_STORAGE
-                    )
-                )
-                .setOnRequestPermissionsResultListener(object : OnRequestPermissionsResultListener {
-                    override fun onRequestPermissionsResult(result: PermissionResult) {
-                        if (result.isGrant()) {
-                            Toast.makeText(this@MainActivity, "已授权", Toast.LENGTH_LONG).show()
-                        } else {
-                            //
-                            Toast.makeText(
-                                this@MainActivity,
-                                "未授权：" + result.getDeniedPermissions(),
-                                Toast.LENGTH_LONG
-                            ).show()
-                        }
-                        notifyDataChanged()
-                    }
-                })
-                .request()
+            requestStorage()
         }
         bind.mPhoneBtn.setOnClickListener {
-            Permission.init(this)
-                .permissions(
-                    arrayOf(
-                        android.Manifest.permission.CALL_PHONE
-                    )
-                )
-                .setOnRequestPermissionsResultListener(object : OnRequestPermissionsResultListener {
-                    override fun onRequestPermissionsResult(result: PermissionResult) {
-                        if (result.isGrant()) {
-                            Toast.makeText(this@MainActivity, "已授权", Toast.LENGTH_LONG).show()
-                        } else {
-                            //
-                            Toast.makeText(
-                                this@MainActivity,
-                                "未授权：" + result.getDeniedPermissions(),
-                                Toast.LENGTH_LONG
-                            ).show()
-                        }
-                        notifyDataChanged()
-                    }
-                })
-                .request()
+            requestCallPhone()
         }
-        notifyDataChanged()
 
     }
 
-    private fun requestLocation() {
+    private fun requestCallPhone() {
         Permission.init(this)
-            .permissions(
-                arrayOf(
-                    android.Manifest.permission.ACCESS_COARSE_LOCATION
-                )
-            )
-            .setOnRequestPermissionsResultListener(object :
-                OnRequestPermissionsResultListener {
+            .permission(android.Manifest.permission.CALL_PHONE)
+            .setOnPermissionsResultListener(object : OnPermissionsResultListener {
+                override fun onShowRequestPermissionRationale(permission: String) {
+                    AlertDialog.Builder(this@MainActivity)
+                        .setTitle("打电话提示")
+                        .setMessage("需要拨打电话权限")
+                        .setCancelable(false)
+                        .setNegativeButton("取消", null)
+                        .setPositiveButton("设置") { dialog, which ->
+                            Permission.settings(this@MainActivity, 100)
+                        }.show()
+                }
+
                 override fun onRequestPermissionsResult(result: PermissionResult) {
                     if (result.isGrant()) {
-                        location()
-                        Toast.makeText(this@MainActivity, "已授权", Toast.LENGTH_LONG)
-                            .show()
+                        Toast.makeText(this@MainActivity, "call phone", Toast.LENGTH_LONG).show()
                     } else {
                         Toast.makeText(
                             this@MainActivity,
                             "未授权：" + result.getDeniedPermissions(),
                             Toast.LENGTH_LONG
                         ).show()
-                        val shouldShowRequestPermissionRationale =
-                            Permission.shouldShowRequestPermissionRationale(
-                                this@MainActivity,
-                                android.Manifest.permission.ACCESS_COARSE_LOCATION
-                            )
-                        if(!shouldShowRequestPermissionRationale){
-                            AlertDialog.Builder(this@MainActivity)
-                                .setTitle("定位权限提示")
-                                .setMessage("需要定位权限")
-                                .setCancelable(false)
-                                .setNegativeButton("取消") { dialog, which ->
-                                }
-                                .setPositiveButton("确定") { dialog, which ->
-                                    Permission.permissionSettings(this@MainActivity, 100)
-                                }.show()
-                        }
                     }
                     notifyDataChanged()
                 }
-            })
-            .request()
+            }).request()
+    }
+
+    private fun requestStorage() {
+        Permission.init(this)
+            .permission(android.Manifest.permission.WRITE_EXTERNAL_STORAGE)
+            .setOnPermissionsResultListener(object : OnPermissionsResultListener {
+
+                override fun onShowRequestPermissionRationale(permission: String) {
+                    AlertDialog.Builder(this@MainActivity)
+                        .setTitle("存储提示")
+                        .setMessage("需要存储权限")
+                        .setCancelable(false)
+                        .setNegativeButton("取消", null)
+                        .setPositiveButton("设置") { dialog, which ->
+                            Permission.settings(this@MainActivity, 100)
+                        }.show()
+                }
+
+                override fun onRequestPermissionsResult(result: PermissionResult) {
+                    if (result.isGrant()) {
+                        Toast.makeText(this@MainActivity, "访问sd card", Toast.LENGTH_LONG).show()
+                    } else {
+                        Toast.makeText(
+                            this@MainActivity,
+                            "未授权：" + result.getDeniedPermissions(),
+                            Toast.LENGTH_LONG
+                        ).show()
+                    }
+                    notifyDataChanged()
+                }
+            }).request()
+    }
+
+    private fun requestLocation() {
+        Permission.init(this)
+            .permission(android.Manifest.permission.ACCESS_COARSE_LOCATION)
+            .setOnPermissionsResultListener(object : OnPermissionsResultListener {
+                override fun onShowRequestPermissionRationale(permission: String) {
+                    AlertDialog.Builder(this@MainActivity)
+                        .setTitle("定位提示")
+                        .setMessage("需要定位权限")
+                        .setCancelable(false)
+                        .setNegativeButton("取消", null)
+                        .setPositiveButton("设置") { dialog, which ->
+                            Permission.settings(this@MainActivity, 100)
+                        }.show()
+                }
+
+                override fun onRequestPermissionsResult(result: PermissionResult) {
+                    if (result.isGrant()) {
+                        location()
+                    } else {
+                        Toast.makeText(
+                            this@MainActivity,
+                            "未授权：" + result.getDeniedPermissions(),
+                            Toast.LENGTH_LONG
+                        ).show()
+                    }
+                    notifyDataChanged()
+                }
+            }).request()
     }
 
     private fun location() {
+        Toast.makeText(this, "定位中", Toast.LENGTH_SHORT).show()
     }
 
     private fun notifyDataChanged() {
@@ -148,8 +131,14 @@ class MainActivity : AppCompatActivity() {
             Permission.isGrant(this, android.Manifest.permission.WRITE_EXTERNAL_STORAGE)
         val phoneGrant =
             Permission.isGrant(this, android.Manifest.permission.CALL_PHONE)
-        bind.mLocationBtn.text = "定位Grant(${locationGrant})"
+        bind.mLocationBtn.text = "定位Gra" +
+                "nt(${locationGrant})"
         bind.mStorageBtn.text = "存储Grant(${storageGrant})"
         bind.mPhoneBtn.text = "电话Grant(${phoneGrant})"
+    }
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        notifyDataChanged()
     }
 }

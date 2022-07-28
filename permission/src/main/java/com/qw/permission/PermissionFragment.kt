@@ -1,34 +1,41 @@
 package com.qw.permission
 
+import android.app.Activity
 import android.os.Bundle
+import android.view.LayoutInflater
+import android.view.View
+import android.view.ViewGroup
 import androidx.fragment.app.Fragment
 
 class PermissionFragment : Fragment() {
     private lateinit var permissions: Array<String>
-    private var requestPermissionsResultListener: OnRequestPermissionsResultListener? = null
-
-    override fun onActivityCreated(savedInstanceState: Bundle?) {
-        super.onActivityCreated(savedInstanceState)
+    private var permissionsResultListener: OnPermissionsResultListener? = null
+    override fun onCreateView(
+        inflater: LayoutInflater,
+        container: ViewGroup?,
+        savedInstanceState: Bundle?
+    ): View? {
         if (savedInstanceState != null) {
             //处理进程在后台被清理场景
             closeSelf()
-            return
+            return null
         }
-        permissions = arguments!!.getStringArray("permissions")!!
+        permissions = requireArguments().getStringArray("permissions")!!
         requestPermissions(
             permissions,
             REQUEST_PERMISSION_CODE
         )
+        return super.onCreateView(inflater, container, savedInstanceState)
     }
 
     private fun closeSelf() {
         if (parentFragment == null) {
-            activity!!.supportFragmentManager
+            requireActivity().supportFragmentManager
                 .beginTransaction()
                 .remove(this)
                 .commitAllowingStateLoss()
         } else {
-            parentFragment!!.childFragmentManager.beginTransaction()
+            requireParentFragment().childFragmentManager.beginTransaction()
                 .remove(this)
                 .commitAllowingStateLoss()
         }
@@ -40,9 +47,20 @@ class PermissionFragment : Fragment() {
         permissions: Array<String>,
         grantResults: IntArray
     ) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         if (requestCode == REQUEST_PERMISSION_CODE) {
-            requestPermissionsResultListener?.onRequestPermissionsResult(
+            //处理永久拒绝场景
+            for (mPermission in permissions) {
+                if (Permission.shouldShowRequestPermissionRationale(
+                        context as Activity,
+                        mPermission
+                    )
+                ) {
+                    permissionsResultListener?.onShowRequestPermissionRationale(mPermission)
+                    closeSelf()
+                    return
+                }
+            }
+            permissionsResultListener?.onRequestPermissionsResult(
                 PermissionResult(
                     permissions,
                     grantResults
@@ -52,8 +70,13 @@ class PermissionFragment : Fragment() {
         }
     }
 
-    fun setOnRequestPermissionsResultListener(listener: OnRequestPermissionsResultListener?) {
-        this.requestPermissionsResultListener = listener
+    fun setOnRequestPermissionsResultListener(listener: OnPermissionsResultListener?) {
+        this.permissionsResultListener = listener
+    }
+
+    override fun onDetach() {
+        super.onDetach()
+        this.permissionsResultListener = null
     }
 
     companion object {

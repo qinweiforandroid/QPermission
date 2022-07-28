@@ -13,19 +13,20 @@ import androidx.fragment.app.FragmentActivity
 import androidx.fragment.app.FragmentManager
 
 class Permission {
-    private lateinit var mFragmentManager: FragmentManager
-    private lateinit var mPermissions: Array<String>
-    private var requestPermissionsResultListener: OnRequestPermissionsResultListener? = null
+    private var mFragmentManager: FragmentManager
+    private var mPermissions: Array<String> = emptyArray()
+    private var permissionsResultListener: OnPermissionsResultListener? = null
 
-    private constructor()
-
+    private var context: Context
 
     constructor(activity: FragmentActivity) {
         mFragmentManager = activity.supportFragmentManager
+        this.context = activity
     }
 
     constructor(fragment: Fragment) {
         mFragmentManager = fragment.childFragmentManager
+        this.context = fragment.requireContext()
     }
 
     companion object {
@@ -54,7 +55,7 @@ class Permission {
             } else false
         }
 
-        fun permissionSettings(activity: FragmentActivity, requestCode: Int) {
+        fun settings(activity: FragmentActivity, requestCode: Int) {
             //跳转到应用权限设置页面
             val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
             val uri = Uri.fromParts("package", activity.packageName, null)
@@ -68,17 +69,46 @@ class Permission {
         return this
     }
 
-    fun setOnRequestPermissionsResultListener(listener: OnRequestPermissionsResultListener?): Permission {
-        this.requestPermissionsResultListener = listener
+    fun permission(permission: String): Permission {
+        mPermissions = mPermissions.plus(permission)
+        return this
+    }
+
+    fun setOnPermissionsResultListener(listener: OnPermissionsResultListener): Permission {
+        this.permissionsResultListener = listener
         return this
     }
 
     fun request() {
+        var isGrant = true
+        for (mPermission in mPermissions) {
+            if (!isGrant(context, mPermission)) {
+                isGrant = false
+                break
+            }
+        }
+        if (isGrant) {
+            //处理已授权场景
+            val result = PermissionResult(mPermissions, IntArray(mPermissions.size).apply {
+                mPermissions.forEachIndexed { index, _ ->
+                    this[index] = PackageManager.PERMISSION_GRANTED
+                }
+            })
+            permissionsResultListener?.onRequestPermissionsResult(result)
+            return
+        }
+        //处理永久拒绝场景
+        for (mPermission in mPermissions) {
+            if (shouldShowRequestPermissionRationale(context as Activity, mPermission)) {
+                permissionsResultListener?.onShowRequestPermissionRationale(mPermission)
+                return
+            }
+        }
         mFragmentManager
             .beginTransaction()
             .add(PermissionFragment.newInstance(mPermissions).apply {
-                this.setOnRequestPermissionsResultListener(requestPermissionsResultListener)
-            }, "")
+                this.setOnRequestPermissionsResultListener(permissionsResultListener)
+            }, "PermissionFragment")
             .commitAllowingStateLoss()
     }
 }

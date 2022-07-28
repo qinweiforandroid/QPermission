@@ -35,39 +35,43 @@ dependencies {
 
 ```kotlin
 private fun requestLocation() {
-    Permission.init(this)
-  			//可同时申请多个权限
-        .permissions(arrayOf(android.Manifest.permission.ACCESS_COARSE_LOCATION) )
-        .setOnRequestPermissionsResultListener(object :OnRequestPermissionsResultListener {
-            override fun onRequestPermissionsResult(result: PermissionResult) {
-              	//isGrant()用于判断是否已经授权
-                if (result.isGrant()) {
-                    //todo 继续做定位的任务
-                } else {
-                    val shouldShowRequestPermissionRationale =
-                        Permission.shouldShowRequestPermissionRationale(
-                            this@MainActivity,
-                            android.Manifest.permission.ACCESS_COARSE_LOCATION
-                        )
-                    if(!shouldShowRequestPermissionRationale){
-                        //todo 用户拒绝权限（不在允许）
-                        AlertDialog.Builder(this@MainActivity)
-                            .setTitle("定位权限提示")
-                            .setMessage("需要定位权限")
-                            .setCancelable(false)
-                            .setNegativeButton("取消") { dialog, which ->
-                            }
-                            .setPositiveButton("确定") { dialog, which ->
-                                Permission.permissionSettings(this@MainActivity, 100)
-                            }.show()
-                    }
-                }
-            }
-        })
-        .request()
+  //初始化Permission实例
+  Permission.init(this)
+  //设置需要申请的权限
+  .permission(android.Manifest.permission.ACCESS_COARSE_LOCATION)
+  //添加权限申请监听器
+  .setOnPermissionsResultListener(object : OnPermissionsResultListener {
+    override fun onShowRequestPermissionRationale(permission: String) {
+      //权限被永久拒绝时调用
+      AlertDialog.Builder(this@MainActivity)
+      .setTitle("定位提示")
+      .setMessage("需要定位权限")
+      .setCancelable(false)
+      .setNegativeButton("取消", null)
+      .setPositiveButton("设置") { dialog, which ->
+            Permission.settings(this@MainActivity, 100)
+       }.show()
+    }
+
+    override fun onRequestPermissionsResult(result: PermissionResult) {
+      //权限申请结果
+      if (result.isGrant()) {
+        //同意
+        location()
+      } else {
+        //拒绝
+        Toast.makeText(
+          this@MainActivity,
+          "未授权：" + result.getDeniedPermissions(),
+          Toast.LENGTH_LONG
+        ).show()
+      }
+      notifyDataChanged()
+    }
+  }).request()
 }
 ```
 
 链式的api调用清晰明了
 
-对接中如遇到问题可以联系QQ：435231045 注意备注QPermission使用问题
+对接中如遇到问题可以联系QQ：435231045 注意备注QPermission的使用问题
