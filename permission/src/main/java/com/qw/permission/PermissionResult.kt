@@ -1,18 +1,18 @@
 package com.qw.permission
 
-import androidx.core.content.PermissionChecker
-
-class PermissionResult(permissions: Array<String>, grantResults: IntArray) {
+class PermissionResult {
     private val deniedPermissions = ArrayList<String>()
     private val grantPermissions = ArrayList<String>()
 
-    init {
-        for (i in permissions.indices) {
-            if (grantResults[i] == PermissionChecker.PERMISSION_GRANTED) {
-                grantPermissions.add(permissions[i])
-            } else {
-                deniedPermissions.add(permissions[i])
-            }
+    fun addDeniedPermission(permission: String) {
+        if (!deniedPermissions.contains(permission)) {
+            deniedPermissions.add(permission)
+        }
+    }
+
+    fun addGrantPermission(permission: String) {
+        if (!grantPermissions.contains(permission)) {
+            grantPermissions.add(permission)
         }
     }
 

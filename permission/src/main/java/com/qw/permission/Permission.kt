@@ -7,6 +7,9 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.provider.Settings
+import androidx.activity.result.ActivityResult
+import androidx.activity.result.ActivityResultCallback
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.FragmentActivity
@@ -55,12 +58,12 @@ class Permission {
             } else false
         }
 
-        fun settings(activity: FragmentActivity, requestCode: Int) {
+        fun settings(activity: FragmentActivity): Intent {
             //跳转到应用权限设置页面
             val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
             val uri = Uri.fromParts("package", activity.packageName, null)
             intent.data = uri
-            activity.startActivityForResult(intent, requestCode)
+            return intent
         }
     }
 
@@ -80,29 +83,18 @@ class Permission {
     }
 
     fun request() {
-        var isGrant = true
+        val result = PermissionResult()
         for (mPermission in mPermissions) {
-            if (!isGrant(context, mPermission)) {
-                isGrant = false
-                break
+            if (isGrant(context, mPermission)) {
+                result.addGrantPermission(mPermission)
+            } else {
+                result.addDeniedPermission(mPermission)
             }
         }
-        if (isGrant) {
+        if (result.isGrant()) {
             //处理已授权场景
-            val result = PermissionResult(mPermissions, IntArray(mPermissions.size).apply {
-                mPermissions.forEachIndexed { index, _ ->
-                    this[index] = PackageManager.PERMISSION_GRANTED
-                }
-            })
             permissionsResultListener?.onRequestPermissionsResult(result)
             return
-        }
-        //处理永久拒绝场景
-        for (mPermission in mPermissions) {
-            if (shouldShowRequestPermissionRationale(context as Activity, mPermission)) {
-                permissionsResultListener?.onShowRequestPermissionRationale(mPermission)
-                return
-            }
         }
         mFragmentManager
             .beginTransaction()

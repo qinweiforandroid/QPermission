@@ -5,6 +5,7 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.fragment.app.Fragment
 
 class PermissionFragment : Fragment() {
@@ -21,10 +22,32 @@ class PermissionFragment : Fragment() {
             return null
         }
         permissions = requireArguments().getStringArray("permissions")!!
-        requestPermissions(
-            permissions,
-            REQUEST_PERMISSION_CODE
-        )
+
+        val permission =
+            registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
+                val result = PermissionResult()
+                it.forEach { item ->
+                    if (item.value) {
+                        result.addGrantPermission(item.key)
+                    } else {
+                        result.addDeniedPermission(item.key)
+                    }
+                }
+                //处理Rationale
+                for (permission in result.getDeniedPermissions()) {
+                    if (Permission.shouldShowRequestPermissionRationale(
+                            context as Activity,
+                            permission
+                        )
+                    ) {
+                        permissionsResultListener?.onRequestPermissionRationaleShow(permission)
+                        closeSelf()
+                        return@registerForActivityResult
+                    }
+                }
+                permissionsResultListener?.onRequestPermissionsResult(result)
+            }
+        permission.launch(permissions)
         return super.onCreateView(inflater, container, savedInstanceState)
     }
 
@@ -41,35 +64,6 @@ class PermissionFragment : Fragment() {
         }
     }
 
-
-    override fun onRequestPermissionsResult(
-        requestCode: Int,
-        permissions: Array<String>,
-        grantResults: IntArray
-    ) {
-        if (requestCode == REQUEST_PERMISSION_CODE) {
-            //处理永久拒绝场景
-            for (mPermission in permissions) {
-                if (Permission.shouldShowRequestPermissionRationale(
-                        context as Activity,
-                        mPermission
-                    )
-                ) {
-                    permissionsResultListener?.onShowRequestPermissionRationale(mPermission)
-                    closeSelf()
-                    return
-                }
-            }
-            permissionsResultListener?.onRequestPermissionsResult(
-                PermissionResult(
-                    permissions,
-                    grantResults
-                )
-            )
-            closeSelf()
-        }
-    }
-
     fun setOnRequestPermissionsResultListener(listener: OnPermissionsResultListener?) {
         this.permissionsResultListener = listener
     }
@@ -80,7 +74,6 @@ class PermissionFragment : Fragment() {
     }
 
     companion object {
-        private const val REQUEST_PERMISSION_CODE = 200
         fun newInstance(permissions: Array<String>): PermissionFragment {
             val fragment = PermissionFragment()
             fragment.arguments = Bundle().apply {
