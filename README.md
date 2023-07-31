@@ -27,7 +27,7 @@ allprojects {
 
 ```groovy
 dependencies {
-  implementation 'com.github.qinweiforandroid:QPermission:1.0.0728'
+  implementation 'com.github.qinweiforandroid:QPermission:2.0.0801'
 }
 ```
 
@@ -36,42 +36,41 @@ dependencies {
 以申请定位权限为例（android.Manifest.permission.ACCESS_COARSE_LOCATION）
 
 ```kotlin
-private fun requestLocation() {
-  //初始化Permission实例
-  Permission.init(this)
-  //设置需要申请的权限
-  .permission(android.Manifest.permission.ACCESS_COARSE_LOCATION)
-  //添加权限申请监听器
-  .setOnPermissionsResultListener(object : OnPermissionsResultListener {
-    override fun onShowRequestPermissionRationale(permission: String) {
-      //权限被永久拒绝时调用
-      AlertDialog.Builder(this@MainActivity)
-      .setTitle("定位提示")
-      .setMessage("需要定位权限")
-      .setCancelable(false)
-      .setNegativeButton("取消", null)
-      .setPositiveButton("设置") { dialog, which ->
-            Permission.settings(this@MainActivity, 100)
-       }.show()
-    }
+    private fun requestLocation(isReasonBeforeRequest: Boolean = true) {
+        //初始化PermissionHandler实例
+        QPermission.init(this)
+            //配置申请的权限
+            .permission(android.Manifest.permission.ACCESS_COARSE_LOCATION)
+            //监听申请结果
+            .setOnResultListener(object : OnResultListener {
+                override fun onGranted(permissions: ArrayList<String>) {
+                    //权限申请通过调用
+                    location()
+                    notifyDataChanged()
+                }
 
-    override fun onRequestPermissionsResult(result: PermissionResult) {
-      //权限申请结果
-      if (result.isGrant()) {
-        //同意
-        location()
-      } else {
-        //拒绝
-        Toast.makeText(
-          this@MainActivity,
-          "未授权：" + result.getDeniedPermissions(),
-          Toast.LENGTH_LONG
-        ).show()
-      }
-      notifyDataChanged()
+                override fun onDeniedAndNeverAskAgain(deniedPermissions: ArrayList<String>) {
+                    //权限被永久拒绝调用
+                    AlertDialog.Builder(this@MainActivity).setTitle("定位权限被拒绝")
+                        .setMessage("需要打开定位权限->权限设置->定位权限—>打开")
+                        .setCancelable(false).setNegativeButton("取消", null)
+                        .setPositiveButton("去设置") { dialog, which ->
+                            QPermission.settings(this@MainActivity, 100)
+                        }.show()
+                }
+
+                override fun onShowRequestPermissionRationale(deniedPermissions: ArrayList<String>) {
+                    //显示申请权限理由
+                    AlertDialog.Builder(this@MainActivity).setTitle("定位提示")
+                        .setMessage("需要先申请定位权限，才可以用哦").setCancelable(false)
+                        .setNegativeButton("取消", null)
+                        .setPositiveButton("现在申请") { dialog, which ->
+                            requestStorage(false)
+                        }.show()
+                }
+                //isReasonBeforeRequest 如果为true 权限为申请状态下会走onShowRequestPermissionRationale 回调
+            }).request(isReasonBeforeRequest)
     }
-  }).request()
-}
 ```
 
 链式的api调用清晰明了

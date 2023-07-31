@@ -1,6 +1,5 @@
 package com.qw.permission
 
-import android.app.Activity
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -9,75 +8,79 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.fragment.app.Fragment
 
 class PermissionFragment : Fragment() {
-    private lateinit var permissions: Array<String>
-    private var permissionsResultListener: OnPermissionsResultListener? = null
+    private var mResultListener: OnResultListener? = null
+    private lateinit var result: PermissionResult
     override fun onCreateView(
-        inflater: LayoutInflater,
-        container: ViewGroup?,
-        savedInstanceState: Bundle?
+        inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
     ): View? {
         if (savedInstanceState != null) {
             //处理进程在后台被清理场景
             closeSelf()
             return null
         }
-        permissions = requireArguments().getStringArray("permissions")!!
-
-        val permission =
+        result = requireArguments().getSerializable("permissions")!! as PermissionResult
+        //check
+        if (result.isGrant()) {
+            mResultListener?.onGranted(result.grantPermissions)
+            return null
+        }
+        val launch =
             registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
-                val result = PermissionResult()
                 it.forEach { item ->
                     if (item.value) {
-                        result.addGrantPermission(item.key)
-                    } else {
-                        result.addDeniedPermission(item.key)
+                        result.grantPermissions.add(item.key)
+                        result.deniedPermissions.remove(item.key)
                     }
                 }
-                //处理Rationale
-                for (permission in result.getDeniedPermissions()) {
-                    if (Permission.shouldShowRequestPermissionRationale(
-                            context as Activity,
-                            permission
+                val deniedAndNeverAskAgain = ArrayList<String>()
+                result.deniedPermissions.forEach { denied ->
+                    if (!QPermission.shouldShowRequestPermissionRationale(
+                            requireActivity(), denied
                         )
                     ) {
-                        permissionsResultListener?.onRequestPermissionRationaleShow(permission)
-                        closeSelf()
-                        return@registerForActivityResult
+                        deniedAndNeverAskAgain.add(denied)
                     }
                 }
-                permissionsResultListener?.onRequestPermissionsResult(result)
+                if (deniedAndNeverAskAgain.isNotEmpty()) {
+                    mResultListener?.onDeniedAndNeverAskAgain(result.deniedPermissions)
+                } else {
+                    if (result.deniedPermissions.isNotEmpty()) {
+                        mResultListener?.onShowRequestPermissionRationale(result.deniedPermissions)
+                    } else {
+                        mResultListener?.onGranted(result.grantPermissions)
+                    }
+                }
+                closeSelf()
             }
-        permission.launch(permissions)
-        return super.onCreateView(inflater, container, savedInstanceState)
+        launch.launch(result.deniedPermissions.toArray(arrayOf()))
+        return null
     }
 
     private fun closeSelf() {
         if (parentFragment == null) {
-            requireActivity().supportFragmentManager
-                .beginTransaction()
-                .remove(this)
+            requireActivity().supportFragmentManager.beginTransaction().remove(this)
                 .commitAllowingStateLoss()
         } else {
-            requireParentFragment().childFragmentManager.beginTransaction()
-                .remove(this)
+            requireParentFragment().childFragmentManager.beginTransaction().remove(this)
                 .commitAllowingStateLoss()
         }
     }
 
-    fun setOnRequestPermissionsResultListener(listener: OnPermissionsResultListener?) {
-        this.permissionsResultListener = listener
+    fun setOnResultListener(listener: OnResultListener?) {
+        this.mResultListener = listener
     }
 
     override fun onDetach() {
         super.onDetach()
-        this.permissionsResultListener = null
+        this.mResultListener = null
     }
 
+
     companion object {
-        fun newInstance(permissions: Array<String>): PermissionFragment {
+        fun newInstance(permissions: PermissionResult): PermissionFragment {
             val fragment = PermissionFragment()
             fragment.arguments = Bundle().apply {
-                putStringArray("permissions", permissions)
+                putSerializable("permissions", permissions)
             }
             return fragment
         }
